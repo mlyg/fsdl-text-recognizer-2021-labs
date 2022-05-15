@@ -16,15 +16,17 @@ class ConvBlock(nn.Module):
     Simple 3x3 conv with padding size 1 (to leave the input size unchanged), followed by a ReLU.
     """
 
-    def __init__(self, input_channels: int, output_channels: int, res=True) -> None:
+    def __init__(self, input_channels: int, output_channels: int, res=False) -> None:
         super().__init__()
         self.conv = nn.Conv2d(input_channels, output_channels, kernel_size=3, stride=1, padding=1)
         self.relu = nn.ReLU()
-
         self.res = res
+        self.conv_2 = nn.Conv2d(output_channels, output_channels, kernel_size=3, stride=1, padding=1)
+        self.bn1 = nn.BatchNorm2d(output_channels)
+        self.bn2 = nn.BatchNorm2d(output_channels)
+        self.bn3 = nn.BatchNorm2d(output_channels)
 
         if self.res:
-            self.conv_2 = nn.Conv2d(output_channels, output_channels, kernel_size=3, stride=1, padding=1)
             self.identity = nn.Conv2d(input_channels, output_channels, kernel_size=1, stride=1, padding=0)
 
 
@@ -40,13 +42,15 @@ class ConvBlock(nn.Module):
         torch.Tensor
             of dimensions (B, C, H, W)
         """
-        c = self.conv(x)
+        c = self.bn1(self.conv(x))
         r = self.relu(c)
+        c = self.bn2(self.conv_2(r))
 
         if self.res:
-            c = self.conv_2(r)
-            i = self.identity(x)
+            i = self.bn3(self.identity(x))
             r = self.relu(c + i)
+        else:
+          r = self.relu(c)
 
         return r
 
@@ -67,7 +71,7 @@ class CNN(nn.Module):
         self.conv1 = ConvBlock(input_dims[0], conv_dim)
         self.conv2 = ConvBlock(conv_dim, conv_dim)
         self.dropout = nn.Dropout(0.25)
-        self.max_pool = nn.MaxPool2d(2)
+        self.strided_conv = nn.Conv2d(conv_dim, conv_dim, kernel_size=3, stride=2, padding=1)
 
         # Because our 3x3 convs have padding size 1, they leave the input size unchanged.
         # The 2x2 max-pool divides the input size by 2. Flattening squares it.
@@ -91,7 +95,7 @@ class CNN(nn.Module):
         assert H == W == IMAGE_SIZE
         x = self.conv1(x)
         x = self.conv2(x)
-        x = self.max_pool(x)
+        x = self.strided_conv(x)
         x = self.dropout(x)
         x = torch.flatten(x, 1)
         x = self.fc1(x)
