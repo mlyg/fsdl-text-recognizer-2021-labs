@@ -9,6 +9,7 @@ import torch.nn.functional as F
 CONV_DIM = 64
 FC_DIM = 128
 IMAGE_SIZE = 28
+REPEAT = 1
 
 
 class ConvBlock(nn.Module):
@@ -16,7 +17,7 @@ class ConvBlock(nn.Module):
     Simple 3x3 conv with padding size 1 (to leave the input size unchanged), followed by a ReLU.
     """
 
-    def __init__(self, input_channels: int, output_channels: int, res=False) -> None:
+    def __init__(self, input_channels: int, output_channels: int, res=True) -> None:
         super().__init__()
         self.conv = nn.Conv2d(input_channels, output_channels, kernel_size=3, stride=1, padding=1)
         self.relu = nn.ReLU()
@@ -67,9 +68,14 @@ class CNN(nn.Module):
 
         conv_dim = self.args.get("conv_dim", CONV_DIM)
         fc_dim = self.args.get("fc_dim", FC_DIM)
+        repeat = self.args.get("repeat", REPEAT)
 
         self.conv1 = ConvBlock(input_dims[0], conv_dim)
-        self.conv2 = ConvBlock(conv_dim, conv_dim)
+        
+        conv_list = []
+        for i in range(repeat):
+          conv_list.append(ConvBlock(conv_dim, conv_dim))
+        self.conv_repeat = nn.Sequential(*conv_list)
         self.dropout = nn.Dropout(0.25)
         self.strided_conv = nn.Conv2d(conv_dim, conv_dim, kernel_size=3, stride=2, padding=1)
 
@@ -94,7 +100,8 @@ class CNN(nn.Module):
         _B, _C, H, W = x.shape
         assert H == W == IMAGE_SIZE
         x = self.conv1(x)
-        x = self.conv2(x)
+        for conv in self.conv_repeat:
+          x = conv(x)
         x = self.strided_conv(x)
         x = self.dropout(x)
         x = torch.flatten(x, 1)
@@ -107,4 +114,5 @@ class CNN(nn.Module):
     def add_to_argparse(parser):
         parser.add_argument("--conv_dim", type=int, default=CONV_DIM)
         parser.add_argument("--fc_dim", type=int, default=FC_DIM)
+        parser.add_argument("--repeat", type=int, default=REPEAT)
         return parser
