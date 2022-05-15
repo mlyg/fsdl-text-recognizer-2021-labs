@@ -21,7 +21,9 @@ class ConvBlock(nn.Module):
         self.conv = nn.Conv2d(input_channels, output_channels, kernel_size=3, stride=1, padding=1)
         self.relu = nn.ReLU()
 
-        if res:
+        self.res = res
+
+        if self.res:
             self.conv_2 = nn.Conv2d(output_channels, output_channels, kernel_size=3, stride=1, padding=1)
             self.identity = nn.Conv2d(input_channels, output_channels, kernel_size=1, stride=1, padding=1)
 
@@ -41,7 +43,7 @@ class ConvBlock(nn.Module):
         c = self.conv(x)
         r = self.relu(c)
 
-        if res:
+        if self.res:
             c = self.conv_2(r)
             i = self.identity(x)
             r = self.relu(c + i)
