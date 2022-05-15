@@ -25,7 +25,7 @@ class ConvBlock(nn.Module):
 
         if self.res:
             self.conv_2 = nn.Conv2d(output_channels, output_channels, kernel_size=3, stride=1, padding=1)
-            self.identity = nn.Conv2d(input_channels, output_channels, kernel_size=1, stride=1, padding=1)
+            self.identity = nn.Conv2d(input_channels, output_channels, kernel_size=1, stride=1, padding=0)
 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
